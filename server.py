@@ -1,6 +1,7 @@
 from flask import Flask, Response, request
 import json
 import random
+import requests
 
 app = Flask(__name__)
 
@@ -22,11 +23,30 @@ class Player:
         self.following = []
         self.hand = []
 
-def start_game():
-    pass
+class Location:
+    def __init__(self, name):
+        self.name = name
+        
+        self.survivors = []
+        self.items = []
+        self.entrances = []
+
+class Entrance:
+    def __init__(self, size):
+        self.size = size
+        
+        self.zombies = 0
+
+def start_game(id):
+    for player in games[int(id)].players:
+        requests.put(player.address + "/start_game")
 
 def shuffle(deck):
     return random.shuffle(deck)
+
+def send_message(sender, message):
+    for player in games[int(id)].players:
+        request.post(player.address + "/messages", json={"sender": sender, "message": message})
 
 @app.route("/games", methods=["GET"])
 def get_games():
@@ -56,12 +76,12 @@ def update_game_info(id):
 def join_game(id):
     player_info = request.json
 
-    if id >= len(games) or id < 0:
+    if int(id) >= len(games) or int(id) < 0:
         return Response(status=406)
 
-    games[id].players.append(Player(player_info["name"], player_info["address"]))
+    games[int(id)].players.append(Player(player_info["name"], player_info["address"]))
     
-    if len(games[id].players) == games[id].number_of_players:
-        start_game()
+    if len(games[int(id)].players) == games[int(id)].number_of_players:
+        start_game(id)
 
     return Response(status=200)
