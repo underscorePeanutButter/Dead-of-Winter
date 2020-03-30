@@ -22,6 +22,9 @@ class Player:
         self.following = []
         self.hand = []
 
+def start_game():
+    pass
+
 def shuffle(deck):
     return random.shuffle(deck)
 
@@ -58,4 +61,7 @@ def join_game(id):
 
     games[id].players.append(Player(player_info["name"], player_info["address"]))
     
+    if len(games[id].players) == games[id].number_of_players:
+        start_game()
+
     return Response(status=200)
