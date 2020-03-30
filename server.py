@@ -13,6 +13,7 @@ class Game:
 
         self.number_of_players = number_of_players
         self.players = []
+        self.locations = []
 
 class Player:
     def __init__(self, name, address):
@@ -54,7 +55,7 @@ def get_games():
 
 @app.route("/games", methods=["POST"])
 def create_game():
-    game_settings = request.json
+    game_settings = json.loads(request.json)
 
     if game_settings["number_of_players"] < 6 and game_settings["number_of_players"] > 1:
         games.append(Game(str(len(games)), game_settings["number_of_players"]))
