@@ -72,6 +72,9 @@ def send_message(message_info):
 
     socket.send(str(message_info).encode("utf-8"))
 
+def start_game():
+    add_message(id, "Server", "All players have joined. Get ready!")
+
 @app.route("/games", methods=["GET"])
 def get_games():
     return Response(status=200)
@@ -108,7 +111,7 @@ def join_game(id):
     add_message(id, "Server", games[int(id)].players[-1].name + " has joined.")
 
     if len(games[int(id)].players) == games[int(id)].number_of_players:
-        pass
+        start_game()
 
     return Response(status=200)
 
