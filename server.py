@@ -2,10 +2,13 @@ from flask import Flask, Response, request
 import json
 import random
 import requests
+import threading
+import time
 
 app = Flask(__name__)
 
 games = []
+message_queue = []
 
 class Game:
     def __init__(self, id, number_of_players):
@@ -38,16 +41,21 @@ class Entrance:
         
         self.zombies = 0
 
-def start_game(id):
-    for player in games[int(id)].players:
-        requests.put(player.address + "/start_game")
+def add_message(id, sender, message):
+    message_info = {"id": id, "sender": sender, "message": message}
+    message_queue.append(message_info)
 
-def shuffle(deck):
-    return random.shuffle(deck)
+def handle_messages():
+    while True:
+        if len(message_queue) > 0:
+            send_message(message_queue[0])
+            message_queue.pop(0)
+        else:
+            time.sleep(1)
 
-def send_message(sender, message):
-    for player in games[int(id)].players:
-        request.post(player.address + "/messages", json={"sender": sender, "message": message})
+def send_message(message_info):
+    for player in games[int(message_info["id"])].players:        
+        requests.post(player.address + "/messages", json=json.dumps(message_info))
 
 @app.route("/games", methods=["GET"])
 def get_games():
@@ -75,14 +83,19 @@ def update_game_info(id):
 
 @app.route("/games/<id>", methods=["PUT"])
 def join_game(id):
-    player_info = request.json
+    player_info = json.loads(request.json)
 
     if int(id) >= len(games) or int(id) < 0:
         return Response(status=406)
 
     games[int(id)].players.append(Player(player_info["name"], player_info["address"]))
     
+    add_message(id, "Server", games[int(id)].players[-1].name + " has joined.")
+
     if len(games[int(id)].players) == games[int(id)].number_of_players:
         start_game(id)
 
     return Response(status=200)
+
+message_thread = threading.Thread(target=handle_messages)
+message_thread.start()
