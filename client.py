@@ -1,9 +1,12 @@
-from flask import Flask, Response, request
+# from flask import Flask, Response, request
+import zmq
+import time
 import json
 import socket
 import requests
+import threading
 
-app = Flask(__name__)
+# app = Flask(__name__)
 
 class Player:
     def __init__(self, name, address):
@@ -14,22 +17,43 @@ class Player:
         self.following = []
         self.hand = []
 
-@app.route("/start_game")
-def start_game():
-    print("starting game")
+def get_new_messages():
+    while True:
+        message_info = None
 
-@app.route("/messages", methods=["POST"])
-def receive_message():
-    message_info = json.loads(request.json)
+        socket.send(b"message please")
+
+        message_info = socket.recv()
+
+        if message_info:
+            if message_info == b"":
+                pass
+            else:
+                message_info = eval(message_info.decode("utf-8"))
+                print(message_info["sender"] + ": " + message_info["message"])
+        else:
+            time.sleep(1)
+
+# @app.route("/start_game")
+# def start_game():
+#     print("starting game")
+
+# @app.route("/messages", methods=["POST"])
+# def receive_message():
+#     message_info = json.loads(request.json)
     
-    sender = message_info["sender"]
-    message = message_info["message"]
+#     sender = message_info["sender"]
+#     message = message_info["message"]
 
-    print(sender + ": " + message)
+#     print(sender + ": " + message)
 
-    return Response(status=200)
+#     return Response(status=200)
 
 server_address = input("Server address? ")
+mq_client = input("Message Queue address? ")
+context = zmq.Context()
+socket = context.socket(zmq.REQ)
+socket.connect(mq_client)
 
 while True:
     print("1. Create new game")
@@ -55,11 +79,12 @@ while True:
     elif choice == "2":
         id = input("Game id? ")
         name = input("Nickname? ")
-        port = input("Port (defaults to 5000)? ")
-        if port == "": 
-            port = "5000"
-        address = "http://" + socket.gethostbyname(socket.gethostname()) + ":" + port
-        
+        # port = input("Port (defaults to 5000)? ")
+        # if port == "": 
+        #     port = "5000"
+        # address = "http://" + socket.gethostbyname(socket.gethostname()) + ":" + port
+        address = ""
+
         player_info = {"name": name, "address": address}
         response = requests.put(server_address + "/games/" + str(id), json=json.dumps(player_info))
 
@@ -70,3 +95,6 @@ while True:
             break
         else:
             print("Something went wrong... please try again.")
+
+message_thread = threading.Thread(target=get_new_messages)
+message_thread.start()

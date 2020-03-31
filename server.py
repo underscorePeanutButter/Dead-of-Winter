@@ -1,4 +1,5 @@
 from flask import Flask, Response, request
+import zmq
 import json
 import random
 import requests
@@ -6,6 +7,9 @@ import threading
 import time
 
 app = Flask(__name__)
+context = zmq.Context()
+socket = context.socket(zmq.REP)
+socket.bind("tcp://*:5555")
 
 games = []
 message_queue = []
@@ -42,20 +46,31 @@ class Entrance:
         self.zombies = 0
 
 def add_message(id, sender, message):
-    message_info = {"id": id, "sender": sender, "message": message}
+    message_info = {"id": id, "sender": sender, "message": message, "times_requested": 0}
     message_queue.append(message_info)
 
 def handle_messages():
     while True:
+        message_request = socket.recv()
+        print("Recieved message request...")
+
+        time.sleep(1)
+
         if len(message_queue) > 0:
             send_message(message_queue[0])
-            message_queue.pop(0)
+
+            message_queue[0]["times_requested"] += 1
+            if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
+                message_queue.pop(0)
         else:
+            send_message("")
             time.sleep(1)
 
 def send_message(message_info):
-    for player in games[int(message_info["id"])].players:        
-        requests.post(player.address + "/messages", json=json.dumps(message_info))
+    # for player in games[int(message_info["id"])].players:        
+    #     requests.post(player.address + "/messages", json=json.dumps(message_info))
+
+    socket.send(str(message_info).encode("utf-8"))
 
 @app.route("/games", methods=["GET"])
 def get_games():
@@ -93,7 +108,7 @@ def join_game(id):
     add_message(id, "Server", games[int(id)].players[-1].name + " has joined.")
 
     if len(games[int(id)].players) == games[int(id)].number_of_players:
-        start_game(id)
+        pass
 
     return Response(status=200)
 
