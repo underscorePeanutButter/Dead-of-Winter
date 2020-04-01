@@ -21,7 +21,7 @@ def get_new_messages():
     while True:
         message_info = None
 
-        socket.send(b"message please")
+        socket.send(id.encode("utf-8"))
 
         message_info = socket.recv()
 
@@ -30,7 +30,8 @@ def get_new_messages():
                 pass
             else:
                 message_info = eval(message_info.decode("utf-8"))
-                print(message_info["sender"] + ": " + message_info["message"])
+                if message_info["message_type"] == "chat":
+                    print(message_info["sender"] + ": " + message_info["message"])
         else:
             time.sleep(1)
 

@@ -45,8 +45,8 @@ class Entrance:
         
         self.zombies = 0
 
-def add_message(id, sender, message):
-    message_info = {"id": id, "sender": sender, "message": message, "times_requested": 0}
+def add_message(id, message_type, sender, message):
+    message_info = {"id": id, "message_type": message_type, "sender": sender, "message": message, "times_requested": 0}
     message_queue.append(message_info)
 
 def handle_messages():
@@ -57,11 +57,15 @@ def handle_messages():
         time.sleep(1)
 
         if len(message_queue) > 0:
-            send_message(message_queue[0])
+            if message_request.decode("utf-8") == message_queue[0]["id"]:
+                send_message(message_queue[0])
 
-            message_queue[0]["times_requested"] += 1
-            if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
-                message_queue.pop(0)
+                message_queue[0]["times_requested"] += 1
+                if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
+                    message_queue.pop(0)
+            else:
+                send_message("")
+                time.sleep(1)
         else:
             send_message("")
             time.sleep(1)
@@ -72,8 +76,8 @@ def send_message(message_info):
 
     socket.send(str(message_info).encode("utf-8"))
 
-def start_game():
-    add_message(id, "Server", "All players have joined. Get ready!")
+def start_game(id):
+    add_message(id, "chat", "Server", "All players have joined. Get ready!")
 
 @app.route("/games", methods=["GET"])
 def get_games():
@@ -108,10 +112,10 @@ def join_game(id):
 
     games[int(id)].players.append(Player(player_info["name"], player_info["address"]))
     
-    add_message(id, "Server", games[int(id)].players[-1].name + " has joined.")
+    add_message(id, "chat", "Server", games[int(id)].players[-1].name + " has joined.")
 
     if len(games[int(id)].players) == games[int(id)].number_of_players:
-        start_game()
+        start_game(id)
 
     return Response(status=200)
 
