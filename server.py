@@ -5,6 +5,7 @@ import random
 import requests
 import threading
 import time
+import survivors
 
 app = Flask(__name__)
 context = zmq.Context()
@@ -13,6 +14,8 @@ socket.bind("tcp://*:5555")
 
 games = []
 message_queue = []
+
+survivor_deck = []
 
 class Game:
     def __init__(self, id, number_of_players):
@@ -61,8 +64,12 @@ def handle_messages():
                 send_message(message_queue[0])
 
                 message_queue[0]["times_requested"] += 1
-                if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
+
+                if message_queue[0]["message_type"] == "starter_survivors":
                     message_queue.pop(0)
+                else:
+                    if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
+                        message_queue.pop(0)
             else:
                 send_message("")
                 time.sleep(1)
@@ -77,7 +84,31 @@ def send_message(message_info):
     socket.send(str(message_info).encode("utf-8"))
 
 def start_game(id):
-    add_message(id, "chat", "Server", "All players have joined. Get ready!")
+    add_message(id, "chat", "Server", "All players have joined.")
+    add_message(id, "chat", "Server", "Preparing cards...")
+    create_decks()
+    add_message(id, "chat", "Server", "Dealing starter survivors...")
+
+    starter_survivors = []
+    for i in range(len(games[int(id)].players)):
+        for j in range(2):
+            starter_survivors.append(survivor_deck[0])
+            survivor_deck.pop(0)
+
+        add_message(id, "starter_survivors", "Server", starter_survivors)
+        starter_survivors = []
+
+def shuffle_deck(deck):
+    random.shuffle(deck)
+
+    return deck
+
+def create_decks():
+    global survivor_deck
+
+    survivor_deck = shuffle_deck(survivors.characters)
+    print(survivor_deck)
+
 
 @app.route("/games", methods=["GET"])
 def get_games():
