@@ -1,4 +1,3 @@
-# from flask import Flask, Response, request
 import zmq
 import time
 import json
@@ -6,8 +5,6 @@ import socket
 import requests
 import threading
 import survivors
-
-# app = Flask(__name__)
 
 class Player:
     def __init__(self, name, address):
@@ -22,7 +19,7 @@ def get_new_messages():
     while True:
         message_info = None
 
-        socket.send(id.encode("utf-8"))
+        socket.send(str({"id": id, "player_id": player_id}).encode("utf-8"))
 
         message_info = socket.recv()
 
@@ -33,23 +30,12 @@ def get_new_messages():
                 message_info = eval(message_info.decode("utf-8"))
                 if message_info["message_type"] == "chat":
                     print(message_info["sender"] + ": " + message_info["message"])
+                
+                if message_info["message_type"] == "starter_survivors":
+                    pass
+
         else:
             time.sleep(1)
-
-# @app.route("/start_game")
-# def start_game():
-#     print("starting game")
-
-# @app.route("/messages", methods=["POST"])
-# def receive_message():
-#     message_info = json.loads(request.json)
-    
-#     sender = message_info["sender"]
-#     message = message_info["message"]
-
-#     print(sender + ": " + message)
-
-#     return Response(status=200)
 
 server_address = input("Server address? ")
 mq_client = input("Message Queue address? ")
@@ -68,23 +54,19 @@ while True:
         game_info = {"number_of_players": int(number_of_players)}
         response = requests.post(server_address + "/games", json=json.dumps(game_info))
 
-        game_info = response.json()
         status = response.status_code
 
-        id = game_info["id"]
-
         if status == 201:
+            game_info = response.json()
+            id = game_info["id"]
             print("Game successfully created!")
             print("Game id: " + str(id))
         else:
             print("Something went wrong... please try again.")
+            
     elif choice == "2":
         id = input("Game id? ")
         name = input("Nickname? ")
-        # port = input("Port (defaults to 5000)? ")
-        # if port == "": 
-        #     port = "5000"
-        # address = "http://" + socket.gethostbyname(socket.gethostname()) + ":" + port
         address = ""
 
         player_info = {"name": name, "address": address}
@@ -94,6 +76,7 @@ while True:
 
         if status == 200:
             print("Game joined successfully!")
+            player_id = response.json()["id"]
             break
         else:
             print("Something went wrong... please try again.")

@@ -26,8 +26,9 @@ class Game:
         self.locations = []
 
 class Player:
-    def __init__(self, name, address):
+    def __init__(self, name, id, address):
         self.name = name
+        self.id = id
         self.address = address
 
         self.leader = None
@@ -48,54 +49,55 @@ class Entrance:
         
         self.zombies = 0
 
-def add_message(id, message_type, sender, message):
-    message_info = {"id": id, "message_type": message_type, "sender": sender, "message": message, "times_requested": 0}
+def add_message(id, message_type, sender, recipient, message):
+    message_info = {"id": id, "message_type": message_type, "sender": sender, "recipient": recipient, "message": message, "times_requested": 0}
     message_queue.append(message_info)
 
 def handle_messages():
     while True:
         message_request = socket.recv()
-        print("Recieved message request...")
 
         time.sleep(1)
 
         if len(message_queue) > 0:
-            if message_request.decode("utf-8") == message_queue[0]["id"]:
-                send_message(message_queue[0])
+            message_info = eval(message_request.decode("utf-8"))
 
-                message_queue[0]["times_requested"] += 1
+            if message_info["id"] == message_queue[0]["id"]:
+                if message_queue[0]["recipient"] == "all":
+                    send_message(message_queue[0])
 
-                if message_queue[0]["message_type"] == "starter_survivors":
-                    message_queue.pop(0)
-                else:
+                    message_queue[0]["times_requested"] += 1
                     if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
                         message_queue.pop(0)
+
+                elif message_info["player_id"] == message_queue[0]["recipient"]:
+                    send_message(message_queue[0])
+                    message_queue.pop(0)
+                else:
+                    send_message("")
+
             else:
                 send_message("")
-                time.sleep(1)
+
         else:
             send_message("")
-            time.sleep(1)
 
 def send_message(message_info):
-    # for player in games[int(message_info["id"])].players:        
-    #     requests.post(player.address + "/messages", json=json.dumps(message_info))
-
     socket.send(str(message_info).encode("utf-8"))
 
 def start_game(id):
-    add_message(id, "chat", "Server", "All players have joined.")
-    add_message(id, "chat", "Server", "Preparing cards...")
+    add_message(id, "chat", "Server", "all", "All players have joined.")
+    add_message(id, "chat", "Server", "all", "Preparing cards...")
     create_decks()
-    add_message(id, "chat", "Server", "Dealing starter survivors...")
+    add_message(id, "chat", "Server", "all", "Dealing starter survivors...")
 
     starter_survivors = []
     for i in range(len(games[int(id)].players)):
-        for j in range(2):
-            starter_survivors.append(survivor_deck[0])
+        for j in range(4):
+            starter_survivors.append(survivor_deck[0].name.lower().replace(" ", "_"))
             survivor_deck.pop(0)
 
-        add_message(id, "starter_survivors", "Server", starter_survivors)
+        add_message(id, "starter_survivors", "Server", i, starter_survivors)
         starter_survivors = []
 
 def shuffle_deck(deck):
@@ -107,7 +109,6 @@ def create_decks():
     global survivor_deck
 
     survivor_deck = shuffle_deck(survivors.characters)
-    print(survivor_deck)
 
 
 @app.route("/games", methods=["GET"])
@@ -141,14 +142,16 @@ def join_game(id):
     if int(id) >= len(games) or int(id) < 0:
         return Response(status=406)
 
-    games[int(id)].players.append(Player(player_info["name"], player_info["address"]))
+    games[int(id)].players.append(Player(player_info["name"], len(games[int(id)].players), player_info["address"]))
     
-    add_message(id, "chat", "Server", games[int(id)].players[-1].name + " has joined.")
+    add_message(id, "chat", "Server", "all", games[int(id)].players[-1].name + " has joined.")
 
     if len(games[int(id)].players) == games[int(id)].number_of_players:
         start_game(id)
 
-    return Response(status=200)
+    response_data = {"id": games[int(id)].players[-1].id}
+
+    return Response(response=json.dumps(response_data), status=200, mimetype="application/json")
 
 message_thread = threading.Thread(target=handle_messages)
 message_thread.start()
