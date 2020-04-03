@@ -50,7 +50,7 @@ class Entrance:
         self.zombies = 0
 
 def add_message(id, message_type, sender, recipient, message):
-    message_info = {"id": id, "message_type": message_type, "sender": sender, "recipient": recipient, "message": message, "times_requested": 0}
+    message_info = {"id": id, "message_type": message_type, "sender": sender, "recipient": recipient, "message": message, "requested_by": []}
     message_queue.append(message_info)
 
 def handle_messages():
@@ -64,10 +64,13 @@ def handle_messages():
 
             if message_info["id"] == message_queue[0]["id"]:
                 if message_queue[0]["recipient"] == "all":
-                    send_message(message_queue[0])
+                    if message_info["player_id"] not in message_queue[0]["requested_by"]:
+                        send_message(message_queue[0])
+                        message_queue[0]["requested_by"].append(message_info["player_id"])
+                    else:
+                        send_message("")
 
-                    message_queue[0]["times_requested"] += 1
-                    if message_queue[0]["times_requested"] >= len(games[int(message_queue[0]["id"])].players):
+                    if len(message_queue[0]["requested_by"]) == games[int(message_queue[0]["id"])].number_of_players:
                         message_queue.pop(0)
 
                 elif message_info["player_id"] == message_queue[0]["recipient"]:
@@ -133,6 +136,17 @@ def get_game_info(id):
 
 @app.route("/games/<id>", methods=["POST"])
 def update_game_info(id):
+    update_info = json.loads(request.json)
+    
+    if update_info["update_type"] == "starter_survivors":
+        print(str(update_info["player_id"]) + " has sent their card choices back.")
+        updating_player = games[int(update_info["id"])].players[int(update_info["player_id"])]
+        updating_player.leader = eval("survivors." + update_info["cards"]["leader"])
+        updating_player.following.append(eval("survivors." + update_info["cards"]["follower"]))
+        
+        for i in range(2):
+            survivor_deck.append(eval("survivors." + update_info["cards"]["unused"][i]))
+
     return Response(status=200)
 
 @app.route("/games/<id>", methods=["PUT"])
